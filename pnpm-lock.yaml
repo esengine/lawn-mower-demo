@@ -9,14 +9,14 @@ importers:
   .:
     dependencies:
       '@esengine/ecs-framework':
-        specifier: ^2.7.0
-        version: 2.7.0
+        specifier: ^2.7.1
+        version: 2.7.1
       '@esengine/mvvm-ui-framework':
         specifier: ^1.1.7
         version: 1.1.7
       '@esengine/network':
         specifier: ^3.0.1
-        version: 3.0.1(@esengine/ecs-framework@2.7.0)(typescript@5.9.3)(ws@8.18.3)
+        version: 3.0.1(@esengine/ecs-framework@2.7.1)(typescript@5.9.3)(ws@8.18.3)
       '@esengine/rpc':
         specifier: ^1.1.1
         version: 1.1.1(typescript@5.9.3)(ws@8.18.3)
@@ -27,11 +27,11 @@ importers:
   packages/server:
     dependencies:
       '@esengine/ecs-framework':
-        specifier: ^2.7.0
-        version: 2.7.0
+        specifier: ^2.7.1
+        version: 2.7.1
       '@esengine/server':
         specifier: ^3.0.0
-        version: 3.0.0(@esengine/ecs-framework@2.7.0)(typescript@5.9.3)(ws@8.18.3)
+        version: 3.0.0(@esengine/ecs-framework@2.7.1)(typescript@5.9.3)(ws@8.18.3)
       '@example/lawn-mower-shared':
         specifier: workspace:*
         version: link:../shared
@@ -55,8 +55,8 @@ importers:
   packages/shared:
     devDependencies:
       '@esengine/ecs-framework':
-        specifier: ^2.7.0
-        version: 2.7.0
+        specifier: ^2.7.1
+        version: 2.7.1
       rimraf:
         specifier: ^5.0.0
         version: 5.0.10
@@ -360,8 +360,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@esengine/ecs-framework@2.7.0':
-    resolution: {integrity: sha512-I5rXfq0X7COiTiV0hsUyfLBF87TeWx3kvzfnrkWY7PRIzOsm4fuJAxUewj0T+4jVHmGD2lUbtgyoBbugMi7Zkw==}
+  '@esengine/ecs-framework@2.7.1':
+    resolution: {integrity: sha512-pQ5qrGYzdFwPTP6CboLwrUMXeEy+VA8NcqZ9Z6mbVisYD9Ne/+NtK/WHizB7JKn9sr7HZHBKQqUYemFMcaw0sA==}
     engines: {node: '>=16.0.0'}
 
   '@esengine/mvvm-ui-framework@1.1.7':
@@ -1093,15 +1093,15 @@ snapshots:
   '@esbuild/win32-x64@0.27.2':
     optional: true
 
-  '@esengine/ecs-framework@2.7.0': {}
+  '@esengine/ecs-framework@2.7.1': {}
 
   '@esengine/mvvm-ui-framework@1.1.7':
     dependencies:
       reflect-metadata: 0.1.14
 
-  '@esengine/network@3.0.1(@esengine/ecs-framework@2.7.0)(typescript@5.9.3)(ws@8.18.3)':
+  '@esengine/network@3.0.1(@esengine/ecs-framework@2.7.1)(typescript@5.9.3)(ws@8.18.3)':
     dependencies:
-      '@esengine/ecs-framework': 2.7.0
+      '@esengine/ecs-framework': 2.7.1
       '@esengine/rpc': 1.1.1(typescript@5.9.3)(ws@8.18.3)
     transitivePeerDependencies:
       - typescript
@@ -1114,12 +1114,12 @@ snapshots:
       msgpackr: 1.11.8
       ws: 8.18.3
 
-  '@esengine/server@3.0.0(@esengine/ecs-framework@2.7.0)(typescript@5.9.3)(ws@8.18.3)':
+  '@esengine/server@3.0.0(@esengine/ecs-framework@2.7.1)(typescript@5.9.3)(ws@8.18.3)':
     dependencies:
       '@esengine/rpc': 1.1.1(typescript@5.9.3)(ws@8.18.3)
       ws: 8.18.3
     optionalDependencies:
-      '@esengine/ecs-framework': 2.7.0
+      '@esengine/ecs-framework': 2.7.1
     transitivePeerDependencies:
       - typescript
 

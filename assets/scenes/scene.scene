@@ -122,8 +122,8 @@
     },
     "_enabled": true,
     "__prefab": null,
-    "debugMode": true,
-    "enableNetwork": false,
+    "debugMode": false,
+    "enableNetwork": true,
     "serverUrl": "ws://localhost:8080",
     "playerName": "Player",
     "_id": "22ZHgzNL5KEY33XZKntbFw"

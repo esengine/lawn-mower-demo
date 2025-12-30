@@ -5,7 +5,7 @@
     "version": "3.8.6"
   },
   "dependencies": {
-    "@esengine/ecs-framework": "^2.7.0",
+    "@esengine/ecs-framework": "^2.7.1",
     "@esengine/mvvm-ui-framework": "^1.1.7",
     "@esengine/network": "^3.0.1",
     "@esengine/rpc": "^1.1.1",

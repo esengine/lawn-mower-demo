@@ -33,7 +33,7 @@
     "@esengine/ecs-framework": ">=2.7.0"
   },
   "devDependencies": {
-    "@esengine/ecs-framework": "^2.7.0",
+    "@esengine/ecs-framework": "^2.7.1",
     "rimraf": "^5.0.0",
     "typescript": "^5.8.0"
   }

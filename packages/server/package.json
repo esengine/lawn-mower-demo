@@ -13,7 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@esengine/ecs-framework": "^2.7.0",
+    "@esengine/ecs-framework": "^2.7.1",
     "@esengine/server": "^3.0.0",
     "@example/lawn-mower-shared": "workspace:*"
   },
