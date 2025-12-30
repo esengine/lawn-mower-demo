@@ -1,0 +1,27 @@
+{
+  "name": "@example/lawn-mower-server",
+  "version": "1.0.0",
+  "description": "Lawn Mower Demo - Game Server",
+  "type": "module",
+  "main": "./dist/main.js",
+  "scripts": {
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "clean": "rimraf dist",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@esengine/ecs-framework": "^2.7.0",
+    "@esengine/server": "^3.0.0",
+    "@example/lawn-mower-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "rimraf": "^5.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.8.0",
+    "vitest": "^2.0.0"
+  }
+}

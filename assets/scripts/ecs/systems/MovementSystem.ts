@@ -85,52 +85,40 @@ export class MovementSystem extends EntitySystem {
      */
     private processNetworkPlayerMovement(entity: Entity, transform: Transform, movement: Movement, networkPlayer: NetworkPlayer, deltaTime: number): void {
         if (networkPlayer.isLocalPlayer) {
-            // 本地玩家：正常处理输入，检测位置变化
-            const previousPos = { x: transform.position.x, y: transform.position.y };
-            this.processLocalMovement(entity, transform, movement, deltaTime);
-            
-            // 检测位置是否发生显著变化
-            const dx = transform.position.x - previousPos.x;
-            const dy = transform.position.y - previousPos.y;
-            const distanceMoved = Math.sqrt(dx * dx + dy * dy);
-            
-            // 只有移动距离超过阈值或者定期更新时才同步
-            const shouldUpdate = distanceMoved > 1.0 || networkPlayer.shouldSendNetworkUpdate(100); // 最少100ms更新一次
-            
-            if (shouldUpdate) {
-                // 更新网络位置信息
-                networkPlayer.updateNetworkTransform(
-                    { x: transform.position.x, y: transform.position.y },
-                    transform.rotation,
-                    { x: movement.velocity.x, y: movement.velocity.y }
-                );
-                
-                // 触发网络同步（通过事件或直接调用）
-                this.triggerNetworkSync(entity, networkPlayer);
-            }
+            // 本地玩家：客户端预测 + 服务器校正
+            this.processLocalPlayerWithPrediction(transform, movement, networkPlayer, deltaTime);
         } else {
-            // 远程玩家：使用网络位置进行插值
+            // 远程玩家：使用框架的 SnapshotBuffer 进行时间插值
             if (networkPlayer.enableInterpolation) {
-                const currentPos = { x: transform.position.x, y: transform.position.y };
-                const targetPosition = networkPlayer.getInterpolatedPosition(currentPos, deltaTime);
-                
-                transform.previousPosition.set(transform.position);
-                transform.position.set(targetPosition.x, targetPosition.y);
-                
-                // 计算实际移动速度
-                const dx = transform.position.x - transform.previousPosition.x;
-                const dy = transform.position.y - transform.previousPosition.y;
-                movement.velocity.set(dx / deltaTime, dy / deltaTime);
-                
-                // 更新旋转角度
-                if (movement.velocity.lengthSqr() > 100) {
-                    const targetRotation = Math.atan2(movement.velocity.y, movement.velocity.x);
-                    let angleDiff = targetRotation - transform.rotation;
-                    if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                    else if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-                    
-                    if (Math.abs(angleDiff) > this.ROTATION_THRESHOLD) {
-                        transform.rotation += angleDiff * 8 * deltaTime;
+                const interpolated = networkPlayer.getBufferedInterpolation();
+
+                if (interpolated) {
+                    // 使用框架插值后的位置
+                    transform.previousPosition.set(transform.position);
+                    transform.position.set(interpolated.position.x, interpolated.position.y);
+                    transform.rotation = interpolated.rotation;
+                    movement.velocity.set(interpolated.velocity.x, interpolated.velocity.y);
+                } else {
+                    // 没有插值数据，使用旧版线性插值作为回退
+                    const currentPos = { x: transform.position.x, y: transform.position.y };
+                    const targetPosition = networkPlayer.getInterpolatedPosition(currentPos, deltaTime);
+
+                    transform.previousPosition.set(transform.position);
+                    transform.position.set(targetPosition.x, targetPosition.y);
+
+                    const dx = transform.position.x - transform.previousPosition.x;
+                    const dy = transform.position.y - transform.previousPosition.y;
+                    movement.velocity.set(dx / deltaTime, dy / deltaTime);
+
+                    if (movement.velocity.lengthSqr() > 100) {
+                        const targetRotation = Math.atan2(movement.velocity.y, movement.velocity.x);
+                        let angleDiff = targetRotation - transform.rotation;
+                        if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                        else if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+                        if (Math.abs(angleDiff) > this.ROTATION_THRESHOLD) {
+                            transform.rotation += angleDiff * 8 * deltaTime;
+                        }
                     }
                 }
             } else {
@@ -144,20 +132,49 @@ export class MovementSystem extends EntitySystem {
     }
     
     /**
-     * 触发网络同步
+     * @zh 处理本地玩家移动（带预测）
+     * @en Process local player movement with prediction
      */
-    private triggerNetworkSync(entity: Entity, networkPlayer: NetworkPlayer): void {
-        if (this.ecsManager) {
-            // 使用统一的接口发送位置更新
-            const success = this.ecsManager.sendPlayerPosition(
-                networkPlayer.networkPosition,
-                networkPlayer.networkRotation,
-                networkPlayer.networkVelocity
-            );
-            
-            if (!success) {
-                this.logger.warn(`玩家 ${networkPlayer.clientId} 位置同步发送失败`);
+    private processLocalPlayerWithPrediction(transform: Transform, movement: Movement, networkPlayer: NetworkPlayer, deltaTime: number): void {
+        const inputDirLen = movement.inputDirection.x * movement.inputDirection.x +
+                           movement.inputDirection.y * movement.inputDirection.y;
+
+        // 1. 应用服务器校正（平滑）
+        if (networkPlayer.pendingCorrection.x !== 0 || networkPlayer.pendingCorrection.y !== 0) {
+            const correction = networkPlayer.applySmoothCorrection(deltaTime);
+            transform.position.x += correction.x;
+            transform.position.y += correction.y;
+        }
+
+        // 2. 客户端预测移动
+        if (inputDirLen > this.MOVEMENT_THRESHOLD * this.MOVEMENT_THRESHOLD) {
+            const invLen = 1 / Math.sqrt(inputDirLen);
+            const normalizedX = movement.inputDirection.x * invLen;
+            const normalizedY = movement.inputDirection.y * invLen;
+
+            const moveDistance = movement.maxSpeed * deltaTime;
+
+            transform.previousPosition.set(transform.position);
+            transform.position.x += normalizedX * moveDistance;
+            transform.position.y += normalizedY * moveDistance;
+
+            movement.velocity.set(normalizedX * movement.maxSpeed, normalizedY * movement.maxSpeed);
+
+            // 更新旋转
+            const velocityLen = movement.velocity.x * movement.velocity.x + movement.velocity.y * movement.velocity.y;
+            if (velocityLen > 100) {
+                const targetRotation = Math.atan2(movement.velocity.y, movement.velocity.x);
+
+                let angleDiff = targetRotation - transform.rotation;
+                if (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                else if (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+                if (Math.abs(angleDiff) > this.ROTATION_THRESHOLD) {
+                    transform.rotation += angleDiff * 8 * deltaTime;
+                }
             }
+        } else {
+            movement.velocity.set(0, 0);
         }
     }
 } 

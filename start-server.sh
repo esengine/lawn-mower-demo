@@ -1,20 +1,35 @@
 #!/bin/bash
 
-echo "启动 Lawn Mower Demo 游戏服务器..."
+echo "Starting Lawn Mower Demo Game Server..."
 
-# 进入服务器目录
-cd server
+# Change to script directory
+cd "$(dirname "$0")"
 
-# 检查是否已安装依赖
-if [ ! -d "node_modules" ]; then
-    echo "安装服务器依赖..."
-    npm install
+# Kill process using port 8080
+echo "Checking port 8080..."
+PID=$(lsof -t -i:8080 2>/dev/null)
+if [ -n "$PID" ]; then
+    echo "Killing process $PID occupying port 8080..."
+    kill -9 $PID 2>/dev/null
 fi
 
-# 编译TypeScript
-echo "编译服务器代码..."
-npm run build
+# Check if pnpm is installed
+if ! command -v pnpm &> /dev/null; then
+    echo "pnpm not found. Installing..."
+    npm install -g pnpm
+fi
 
-# 启动服务器
-echo "启动服务器..."
-npm start
+# Install dependencies if needed
+if [ ! -d "node_modules" ]; then
+    echo "Installing dependencies..."
+    pnpm install
+fi
+
+# Build shared package
+echo "Building shared package..."
+pnpm --filter @example/lawn-mower-shared build
+
+# Build and start server
+echo "Building and starting server..."
+pnpm --filter @example/lawn-mower-server build
+pnpm --filter @example/lawn-mower-server start

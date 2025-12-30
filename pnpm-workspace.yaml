@@ -1,0 +1,13 @@
+# Lawn Mower Demo - pnpm workspace
+#
+# This demo is a standalone project (git submodule) with its own workspace.
+# It contains shared code, server, and client (Cocos Creator).
+#
+# Directory structure:
+#   packages/shared/  - Shared components and protocol (@example/lawn-mower-shared)
+#   packages/server/  - Game server (@example/lawn-mower-server)
+#   .                 - Cocos Creator client (lawn-mower-demo)
+
+packages:
+  - 'packages/*'
+  - '.'

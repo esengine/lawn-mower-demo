@@ -35,28 +35,51 @@ export class AirStrikeSystem extends PassiveSystem {
         this.updateMissiles(deltaTime);
     }
     
-    private activateAirStrike(): void {
+    /**
+     * @zh 激活空袭（支持服务器同步的目标位置）
+     * @en Activate air strike (supports server-synced target positions)
+     */
+    private activateAirStrike(eventData?: {
+        targets?: Array<{ x: number; y: number }>;
+        warningTime?: number;
+        explosionRadius?: number;
+        explosionDamage?: number;
+    }): void {
         if (this.isActive) return;
-        
+
         this.isActive = true;
         this.currentWarningTime = 0;
         this.missilesLaunched = false;
         this.strikeTargets = [];
         this.warningEntities = [];
-        
-        const playerEntities = this.scene.findEntitiesByTag(EntityTags.PLAYER);
-        if (playerEntities.length === 0) return;
-        
-        const player = playerEntities[0];
-        const playerTransform = player.getComponent(Transform);
-        if (!playerTransform) return;
-        
-        const playerPos = new Vec2(playerTransform.position.x, playerTransform.position.y);
-        
-        for (let i = 0; i < this.strikeCount; i++) {
-            const randomPos = this.getRandomPosition(playerPos);
-            this.strikeTargets.push(randomPos);
-            this.createWarning(randomPos);
+
+        // 使用服务器同步的参数（如果有）
+        if (eventData?.warningTime) this.warningTime = eventData.warningTime;
+
+        // 使用服务器同步的目标位置，或本地生成（单机模式）
+        if (eventData?.targets && eventData.targets.length > 0) {
+            // 网络模式：使用服务器提供的目标位置
+            for (const target of eventData.targets) {
+                const pos = new Vec2(target.x, target.y);
+                this.strikeTargets.push(pos);
+                this.createWarning(pos);
+            }
+        } else {
+            // 单机模式：本地生成目标位置
+            const playerEntities = this.scene.findEntitiesByTag(EntityTags.PLAYER);
+            if (playerEntities.length === 0) return;
+
+            const player = playerEntities[0];
+            const playerTransform = player.getComponent(Transform);
+            if (!playerTransform) return;
+
+            const playerPos = new Vec2(playerTransform.position.x, playerTransform.position.y);
+
+            for (let i = 0; i < this.strikeCount; i++) {
+                const randomPos = this.getRandomPosition(playerPos);
+                this.strikeTargets.push(randomPos);
+                this.createWarning(randomPos);
+            }
         }
     }
     

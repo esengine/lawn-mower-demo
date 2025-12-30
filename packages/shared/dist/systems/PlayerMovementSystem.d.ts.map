@@ -1,0 +1,1 @@
+{"version":3,"file":"PlayerMovementSystem.d.ts","sourceRoot":"","sources":["../../src/systems/PlayerMovementSystem.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,OAAO,EAAE,YAAY,EAAE,MAAM,EAA4B,MAAM,yBAAyB,CAAC;AAIzF,qBACa,oBAAqB,SAAQ,YAAY;;IAKlD,SAAS,CAAC,OAAO,CAAC,QAAQ,EAAE,SAAS,MAAM,EAAE,GAAG,IAAI;CAgBvD"}

@@ -1,0 +1,40 @@
+{
+  "name": "@example/lawn-mower-shared",
+  "version": "1.0.0",
+  "description": "Lawn Mower Demo - Shared code between server and client",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": [
+    "./dist/index.js",
+    "./dist/components/*.js"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./components": {
+      "import": "./dist/components/index.js",
+      "types": "./dist/components/index.d.ts"
+    },
+    "./protocol": {
+      "import": "./dist/protocol.js",
+      "types": "./dist/protocol.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "clean": "rimraf dist"
+  },
+  "peerDependencies": {
+    "@esengine/ecs-framework": ">=2.7.0"
+  },
+  "devDependencies": {
+    "@esengine/ecs-framework": "^2.7.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.8.0"
+  }
+}

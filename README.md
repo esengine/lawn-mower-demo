@@ -1,63 +1,142 @@
 # Lawn Mower Demo
 
-这是一个基于ECS框架的割草机游戏演示项目，支持网络多人游戏。
+基于 ESEngine 的多人割草机游戏演示，展示 ECS 架构和网络同步的最佳实践。
+
+## 前置要求
+
+- **Node.js** >= 18.0.0
+- **pnpm** >= 8.0.0 (推荐使用 pnpm，原生支持 workspace)
+
+### 安装 pnpm
+
+如果你还没有安装 pnpm，可以通过以下方式安装：
+
+```bash
+# 使用 npm 安装（推荐）
+npm install -g pnpm
+
+# 或使用 corepack（Node.js 16.9+ 自带）
+corepack enable
+corepack prepare pnpm@latest --activate
+
+# 验证安装
+pnpm --version
+```
+
+> **为什么用 pnpm？** pnpm 对 monorepo workspace 支持最好，安装速度快，磁盘占用小。
 
 ## 项目结构
 
 ```
 lawn-mower-demo/
-├── assets/                 # Cocos Creator客户端资源
-│   └── scripts/            # 客户端脚本
-│       ├── ecs/            # ECS组件和系统
-│       └── ui-ecs/         # UI相关代码
-├── server/                 # 游戏服务器代码（不会编译到客户端）
-│   ├── index.ts           # 服务器入口
-│   ├── GameServerRpcHandler.ts
-│   ├── package.json       # 服务器依赖
-│   └── tsconfig.server.json
-├── start-server.sh        # Linux/Mac启动脚本
-├── start-server.bat       # Windows启动脚本
-└── package.json           # 客户端依赖
+├── packages/
+│   ├── shared/                 # @example/lawn-mower-shared
+│   │   └── src/
+│   │       ├── components/     # 共享组件（带 @sync 装饰器）
+│   │       ├── protocol.ts     # 消息协议定义
+│   │       └── constants.ts    # 游戏常量
+│   │
+│   └── server/                 # @example/lawn-mower-server
+│       └── src/
+│           ├── rooms/          # 房间实现
+│           └── main.ts         # 服务器入口
+│
+├── assets/                     # Cocos Creator 客户端
+│   └── scripts/
+│       ├── ecs/               # ECS 组件和系统
+│       └── network/           # 网络服务
+│
+├── pnpm-workspace.yaml        # pnpm workspace 配置
+└── package.json               # Cocos Creator 项目配置
 ```
 
-## 使用方法
+## 快速开始
 
-### 启动服务器
+### 1. 安装依赖
 
-**Linux/Mac:**
 ```bash
-./start-server.sh
+cd lawn-mower-demo
+pnpm install
 ```
 
-**Windows:**
-```batch
-start-server.bat
-```
+### 2. 构建 shared 包
 
-**手动启动:**
 ```bash
-cd server
-npm install
-npm run build
-npm start
+pnpm --filter @example/lawn-mower-shared build
 ```
 
-### 启动客户端
+### 3. 启动服务器
 
-1. 在Cocos Creator中打开项目
-2. 构建并运行游戏
-3. 客户端会连接到服务器（默认localhost:8080）
+```bash
+# 开发模式
+pnpm --filter @example/lawn-mower-server dev
 
-## 特性
+# 或构建后运行
+pnpm --filter @example/lawn-mower-server build
+pnpm --filter @example/lawn-mower-server start
+```
 
-- 基于ECS架构的游戏逻辑
-- WebSocket网络通信
-- 多人实时同步
-- RPC调用系统
-- 服务器代码与客户端代码分离
+### 4. 启动客户端
 
-## 注意事项
+在 Cocos Creator 中打开项目并运行。
 
-- `server/` 目录不会被Cocos Creator编译到客户端
-- 服务器和客户端使用相同的网络组件定义
-- 服务器默认监听8080端口
+## 架构特点
+
+### 共享代码 (packages/shared)
+
+- **组件定义**: 使用 `@ECSComponent` 和 `@sync` 装饰器
+- **协议**: 客户端/服务端消息类型定义
+- **常量**: 游戏配置常量
+
+```typescript
+@ECSComponent('PlayerComponent')
+export class PlayerComponent extends Component {
+    @sync('string') playerId: string = '';
+    @sync('float32') x: number = 0;
+    @sync('float32') y: number = 0;
+    // ...
+}
+```
+
+### 服务端 (packages/server)
+
+- 继承 `ECSRoom` 实现自动状态同步
+- 使用 `@onMessage` 装饰器处理消息
+- 二进制增量同步，最小化带宽
+
+```typescript
+export class GameRoom extends ECSRoom {
+    @onMessage(MsgTypes.JoinGame)
+    handleJoinGame(data: JoinGameMsg, player: Player) {
+        const entity = this.createPlayerEntity(player.id);
+        entity.addComponent(new PlayerComponent());
+        this.broadcastSpawn(entity, 'Player');
+    }
+}
+```
+
+### 客户端 (assets/scripts)
+
+- 使用 `@esengine/rpc` 连接服务器
+- 自动解码二进制状态更新
+- 基于 ECS 的游戏逻辑
+
+## 依赖说明
+
+| 包 | 版本 | 说明 |
+|----|------|------|
+| @esengine/ecs-framework | ^2.5.0 | ECS 核心框架 |
+| @esengine/server | ^2.0.0 | 游戏服务器框架 |
+| @esengine/rpc | ^1.1.1 | RPC 通信 |
+
+## 开发说明
+
+本项目是独立的 git submodule，拥有自己的 pnpm workspace：
+
+- `packages/shared` 和 `packages/server` 是 workspace 内部包
+- `@esengine/*` 从 npm 获取发布版本
+- 根目录 (lawn-mower-demo) 也是 workspace 成员，用于 Cocos Creator 客户端
+
+## License
+
+MIT

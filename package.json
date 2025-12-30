@@ -5,9 +5,10 @@
     "version": "3.8.6"
   },
   "dependencies": {
-    "@esengine/ecs-framework": "latest",
-    "@esengine/mvvm-ui-framework": "latest",
-    "@esengine/network-client": "latest",
-    "@esengine/network-shared": "latest"
+    "@esengine/ecs-framework": "^2.7.0",
+    "@esengine/mvvm-ui-framework": "^1.1.7",
+    "@esengine/network": "^3.0.1",
+    "@esengine/rpc": "^1.1.1",
+    "@example/lawn-mower-shared": "workspace:*"
   }
 }

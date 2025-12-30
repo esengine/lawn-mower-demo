@@ -1,4 +1,11 @@
 import { Component, ECSComponent } from '@esengine/ecs-framework';
+import {
+    createSnapshotBuffer,
+    createTransformInterpolator,
+    type ISnapshotBuffer,
+    type ITransformStateWithVelocity,
+    type TransformInterpolator
+} from '@esengine/network';
 
 /**
  * 网络位置数据结构（平台无关）
@@ -25,7 +32,7 @@ export class NetworkPlayer extends Component {
     public lastUpdateTime: number = 0;
     public ping: number = 0;
     public isReady: boolean = false;
-    
+
     // 网络同步的位置和状态（使用SyncVar）
     // @SyncVar
     public networkPosition: NetworkVector2 = { x: 0, y: 0 };
@@ -34,15 +41,42 @@ export class NetworkPlayer extends Component {
     // @SyncVar
     public networkVelocity: NetworkVector2 = { x: 0, y: 0 };
     public lastNetworkUpdate: number = 0;
-    
-    // 插值相关
-    public interpolationSpeed: number = 10;
+
+    // =========================================================================
+    // 远程玩家插值 | Remote Player Interpolation (使用框架的 SnapshotBuffer)
+    // =========================================================================
+
+    /** @zh 是否启用插值 @en Enable interpolation */
     public enableInterpolation: boolean = true;
-    
-    // 预测相关（用于本地玩家）
+
+    /** @zh 插值延迟（毫秒），渲染位置落后于最新数据的时间 @en Interpolation delay in ms */
+    public interpolationDelay: number = 100;
+
+    /** @zh 快照缓冲区 @en Snapshot buffer */
+    private _snapshotBuffer: ISnapshotBuffer<ITransformStateWithVelocity> | null = null;
+
+    /** @zh 变换插值器 @en Transform interpolator */
+    private _interpolator: TransformInterpolator | null = null;
+
+    /** @zh 旧版插值速度（保留兼容性） @en Legacy interpolation speed */
+    public interpolationSpeed: number = 10;
+
+    // =========================================================================
+    // 客户端预测 + 服务器校正 | Client Prediction + Server Reconciliation
+    // =========================================================================
+
+    /** @zh 是否启用客户端预测 @en Enable client-side prediction */
     public enablePrediction: boolean = true;
-    public lastInputSequence: number = 0;
-    
+
+    /** @zh 校正阈值（位置差异超过此值时进行校正） @en Reconciliation threshold */
+    public reconciliationThreshold: number = 5.0;
+
+    /** @zh 平滑校正速度 @en Smooth correction speed */
+    public correctionSpeed: number = 15.0;
+
+    /** @zh 待校正的位置差异 @en Pending position correction */
+    public pendingCorrection: NetworkVector2 = { x: 0, y: 0 };
+
     public customData: Record<string, any> = {};
 
     public init(clientId: string, isLocalPlayer: boolean = false, playerName: string = '') {
@@ -52,7 +86,30 @@ export class NetworkPlayer extends Component {
         this.joinTime = Date.now();
         this.lastUpdateTime = Date.now();
         this.lastNetworkUpdate = Date.now();
+
+        // 远程玩家：初始化快照缓冲区和插值器
+        if (!isLocalPlayer) {
+            this._snapshotBuffer = createSnapshotBuffer<ITransformStateWithVelocity>(30, this.interpolationDelay);
+            this._interpolator = createTransformInterpolator();
+        }
+
         return this;
+    }
+
+    /**
+     * @zh 获取快照缓冲区
+     * @en Get snapshot buffer
+     */
+    public get snapshotBuffer(): ISnapshotBuffer<ITransformStateWithVelocity> | null {
+        return this._snapshotBuffer;
+    }
+
+    /**
+     * @zh 获取插值器
+     * @en Get interpolator
+     */
+    public get interpolator(): TransformInterpolator | null {
+        return this._interpolator;
     }
 
     public updateStats(kills: number = 0, deaths: number = 0, score: number = 0) {
@@ -121,5 +178,123 @@ export class NetworkPlayer extends Component {
             x: currentPosition.x + (this.networkPosition.x - currentPosition.x) * lerpFactor,
             y: currentPosition.y + (this.networkPosition.y - currentPosition.y) * lerpFactor
         };
+    }
+
+    // =========================================================================
+    // 服务器校正辅助方法 | Server Reconciliation Helper Methods
+    // =========================================================================
+
+    /**
+     * @zh 应用平滑校正
+     * @en Apply smooth correction
+     */
+    public applySmoothCorrection(deltaTime: number): NetworkVector2 {
+        const correctionX = this.pendingCorrection.x;
+        const correctionY = this.pendingCorrection.y;
+
+        if (Math.abs(correctionX) < 0.01 && Math.abs(correctionY) < 0.01) {
+            this.pendingCorrection.x = 0;
+            this.pendingCorrection.y = 0;
+            return { x: 0, y: 0 };
+        }
+
+        const factor = Math.min(1.0, deltaTime * this.correctionSpeed);
+        const appliedX = correctionX * factor;
+        const appliedY = correctionY * factor;
+
+        this.pendingCorrection.x -= appliedX;
+        this.pendingCorrection.y -= appliedY;
+
+        return { x: appliedX, y: appliedY };
+    }
+
+    /**
+     * @zh 设置待校正的位置差异
+     * @en Set pending position correction
+     */
+    public setCorrection(dx: number, dy: number): void {
+        this.pendingCorrection.x = dx;
+        this.pendingCorrection.y = dy;
+    }
+
+    /**
+     * @zh 检查是否需要大幅校正（瞬移）
+     * @en Check if major correction (teleport) is needed
+     */
+    public needsHardCorrection(serverX: number, serverY: number, clientX: number, clientY: number): boolean {
+        const dx = serverX - clientX;
+        const dy = serverY - clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance > this.reconciliationThreshold * 3; // 超过3倍阈值直接瞬移
+    }
+
+    // =========================================================================
+    // 远程玩家插值方法 | Remote Player Interpolation Methods (使用框架实现)
+    // =========================================================================
+
+    /**
+     * @zh 添加位置快照到缓冲区（使用框架的 SnapshotBuffer）
+     * @en Add position snapshot to buffer (using framework's SnapshotBuffer)
+     */
+    public addPositionSnapshot(position: NetworkVector2, rotation: number, velocity: NetworkVector2): void {
+        if (!this._snapshotBuffer) return;
+
+        this._snapshotBuffer.push({
+            timestamp: Date.now(),
+            state: {
+                x: position.x,
+                y: position.y,
+                rotation,
+                velocityX: velocity.x,
+                velocityY: velocity.y,
+                angularVelocity: 0
+            }
+        });
+    }
+
+    /**
+     * @zh 获取插值后的位置和旋转（使用框架的 SnapshotBuffer + TransformInterpolator）
+     * @en Get interpolated position and rotation (using framework's SnapshotBuffer + TransformInterpolator)
+     */
+    public getBufferedInterpolation(): { position: NetworkVector2; rotation: number; velocity: NetworkVector2 } | null {
+        if (!this._snapshotBuffer || !this._interpolator) {
+            return null;
+        }
+
+        const renderTime = Date.now();
+        const snapshots = this._snapshotBuffer.getInterpolationSnapshots(renderTime);
+
+        if (!snapshots) {
+            // 没有足够快照，使用最新的
+            const latest = this._snapshotBuffer.getLatest();
+            if (latest) {
+                return {
+                    position: { x: latest.state.x, y: latest.state.y },
+                    rotation: latest.state.rotation,
+                    velocity: { x: latest.state.velocityX, y: latest.state.velocityY }
+                };
+            }
+            return null;
+        }
+
+        const [prev, next, t] = snapshots;
+        const interpolated = this._interpolator.interpolate(prev.state, next.state, t);
+
+        return {
+            position: { x: interpolated.x, y: interpolated.y },
+            rotation: interpolated.rotation,
+            velocity: {
+                x: prev.state.velocityX + (next.state.velocityX - prev.state.velocityX) * t,
+                y: prev.state.velocityY + (next.state.velocityY - prev.state.velocityY) * t
+            }
+        };
+    }
+
+    /**
+     * @zh 清空位置缓冲区
+     * @en Clear position buffer
+     */
+    public clearPositionBuffer(): void {
+        this._snapshotBuffer?.clear();
     }
 }

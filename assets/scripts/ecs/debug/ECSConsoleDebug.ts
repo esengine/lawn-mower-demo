@@ -109,7 +109,7 @@ ECS调试控制台命令帮助
 
         const entityCount = scene.entities.count;
         const systemCount = scene.systems.length;
-        
+
         console.log(`
 ECS系统总览
 ════════════════
@@ -117,15 +117,6 @@ ECS系统总览
 实体数量: ${entityCount}
 系统数量: ${systemCount}
         `);
-
-
-        // 网络状态
-        if (this.ecsManager) {
-            const networkStats = this.ecsManager.getNetworkStats();
-            const networkStatus = networkStats.connected ? '已连接' : '未连接';
-            const latency = networkStats.latency ? ` (${networkStats.latency}ms)` : '';
-            console.log(`网络状态: ${networkStatus}${latency}`);
-        }
     }
 
     /**
@@ -237,44 +228,16 @@ ECS系统总览
 
         // 系统性能排名
         this.showSystemPerformance();
-
-        // 网络延迟
-        if (this.ecsManager) {
-            const networkStats = this.ecsManager.getNetworkStats();
-            if (networkStats.connected && networkStats.latency) {
-                console.log(`网络延迟: ${networkStats.latency}ms`);
-            }
-        }
     }
 
     /**
      * 显示网络状态
      */
     private showNetwork(): void {
-        if (!this.ecsManager) {
-            console.warn('ECSManager不可用');
-            return;
-        }
-
-        const networkStats = this.ecsManager.getNetworkStats();
         console.log(`
 网络状态
 ═══════════════`);
-
-        console.log(`连接状态: ${networkStats.connected ? '已连接' : '未连接'}`);
-        
-        if (networkStats.connected) {
-            console.log(`客户端ID: ${networkStats.clientId || '未知'}`);
-            console.log(`连接状态: ${networkStats.state || '未知'}`);
-            
-            if (networkStats.latency) {
-                console.log(`延迟: ${networkStats.latency}ms`);
-            }
-            
-            if (networkStats.stats) {
-                console.log(`统计信息:`, networkStats.stats);
-            }
-        }
+        console.log('网络状态显示功能需要集成 NetworkService');
     }
 
     /**
@@ -287,9 +250,9 @@ ECS系统总览
         console.log('输入 ecsStopWatch() 停止监控');
         
         this.isAutoUpdate = true;
-        this.updateInterval = setInterval(() => {
+        this.updateInterval = window.setInterval(() => {
             if (!this.isAutoUpdate) return;
-            
+
             console.clear();
             console.log(`自动更新 - ${new Date().toLocaleTimeString()}`);
             this.showStats();

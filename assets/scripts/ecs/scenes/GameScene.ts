@@ -9,6 +9,7 @@ import { EntityTags } from '../EntityTags';
  * 游戏场景
  */
 export class GameScene extends Scene {
+
     private playerEntity: Entity = null;
     private gameContainer: Node = null;
     private mainCamera: Camera | null = null;
@@ -21,6 +22,9 @@ export class GameScene extends Scene {
     // 网络玩家管理
     private networkPlayers: Map<string, Entity> = new Map();
     private ecsManager: any = null;
+
+    // 是否是网络模式（网络模式下敌人由服务器生成）
+    private isNetworkMode: boolean = false;
     
     /**
      * 场景初始化 - ECS框架标准
@@ -39,7 +43,10 @@ export class GameScene extends Scene {
         this.addEntityProcessor(new WeaponSystem());
         this.addEntityProcessor(new ProjectileSystem());
         this.addEntityProcessor(new AirStrikeSystem());
-        this.addEntityProcessor(new PowerUpSpawner());
+        // PowerUpSpawner 只在非网络模式下使用，网络模式下由服务器生成
+        if (!this.isNetworkMode) {
+            this.addEntityProcessor(new PowerUpSpawner());
+        }
         this.addEntityProcessor(new CollisionSystem());
         this.addEntityProcessor(new CollectibleSystem());
         this.addEntityProcessor(new HealthSystem());
@@ -52,17 +59,31 @@ export class GameScene extends Scene {
         
         this.renderSystem = new RenderSystem();
         this.addEntityProcessor(this.renderSystem);
-        
-        this.enemySpawnSystem = new EnemySpawnSystem();
-        this.addEntityProcessor(this.enemySpawnSystem);
-        
+
+        // 只有非网络模式下才创建本地敌人生成系统
+        if (!this.isNetworkMode) {
+            this.enemySpawnSystem = new EnemySpawnSystem();
+            this.addEntityProcessor(this.enemySpawnSystem);
+        }
+
         this.cameraShakeSystem = new CameraShakeSystem();
         this.addEntityProcessor(this.cameraShakeSystem);
-        
+
         this.setupSystemDependencies();
-        
-        this.createPlayer();
-        this.createEnemySpawner();
+
+        // 只有非网络模式下才创建本地玩家和敌人生成器
+        if (!this.isNetworkMode) {
+            this.createPlayer();
+            this.createEnemySpawner();
+        }
+    }
+
+    /**
+     * 设置网络模式
+     * 在网络模式下，敌人由服务器生成
+     */
+    public setNetworkMode(enabled: boolean): void {
+        this.isNetworkMode = enabled;
     }
     
     /**
@@ -95,19 +116,19 @@ export class GameScene extends Scene {
     private setupSystemDependencies(): void {
         if (this.gameContainer) {
             this.renderSystem?.setGameContainer(this.gameContainer);
-
-            const weaponSystem = this.services.resolve(WeaponSystem);
+            
+            const weaponSystem = this.getEntityProcessor(WeaponSystem);
             if (weaponSystem) {
                 weaponSystem.setGameContainer(this.gameContainer);
             }
-
+            
             if (this.vectorizedParticleSystem) {
                 this.vectorizedParticleSystem.setGameContainer(this.gameContainer);
             }
         }
-
+        
         if (this.mainCamera) {
-            const cameraFollowSystem = this.services.resolve(CameraFollowSystem);
+            const cameraFollowSystem = this.getEntityProcessor(CameraFollowSystem);
             if (cameraFollowSystem) {
                 cameraFollowSystem.setCamera(this.mainCamera);
             }
@@ -254,60 +275,6 @@ export class GameScene extends Scene {
         
         // 创建本地网络玩家
         this.playerEntity = this.createNetworkPlayer(clientId, playerName, true);
-    }
-    
-    /**
-     * 处理网络消息
-     */
-    public handleNetworkMessage(message: any): void {
-        if (!message.data) return;
-        
-        const { senderId, data } = message;
-        const { gameMessageType, payload } = data;
-        
-        switch (gameMessageType) {
-            case 'player_position':
-                this.handlePlayerPositionUpdate(senderId, payload, data.playerName);
-                break;
-            case 'player_shoot':
-                this.handlePlayerShootEvent(senderId, payload, data.playerName);
-                break;
-            default:
-                console.debug(`未处理的网络消息: ${gameMessageType}`);
-        }
-    }
-    
-    /**
-     * 处理玩家位置更新
-     */
-    private handlePlayerPositionUpdate(senderId: string, payload: any, playerName: string): void {
-        const { position, rotation, velocity } = payload;
-        
-        // 获取或创建远程玩家
-        let playerEntity = this.getNetworkPlayer(senderId);
-        if (!playerEntity) {
-            playerEntity = this.createNetworkPlayer(senderId, playerName || 'Remote Player', false);
-        }
-        
-        if (playerEntity) {
-            const networkPlayer = playerEntity.getComponent(NetworkPlayer);
-            if (networkPlayer) {
-                networkPlayer.updateNetworkTransform(
-                    position,
-                    rotation,
-                    velocity
-                );
-            }
-        }
-    }
-    
-    /**
-     * 处理玩家射击事件
-     */
-    private handlePlayerShootEvent(senderId: string, payload: any, playerName: string): void {
-        console.log(`玩家 ${playerName} 射击:`, payload);
-        // 这里可以创建子弹实体、播放特效等
-        // 可以通过senderId获取射击玩家的实体，然后创建子弹
     }
     
     private createEnemySpawner(): void {
