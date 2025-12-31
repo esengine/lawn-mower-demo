@@ -1,5 +1,5 @@
 import { Core, createLogger } from '@esengine/ecs-framework';
-import { Component, _decorator, Vec2, Node } from 'cc';
+import { Component, _decorator, Vec2, Node, director } from 'cc';
 import { GameScene } from './scenes/GameScene';
 import { networkService, type ShootEventData } from '../network';
 import { ECSConsoleDebug } from './debug/ECSConsoleDebug';
@@ -31,6 +31,9 @@ export class ECSManager extends Component {
 
     @property({ tooltip: '是否需要登录（启用后会先显示登录界面）' })
     requireLogin: boolean = false;
+
+    @property({ tooltip: '登录场景名（被踢后跳转）' })
+    loginSceneName: string = 'login';
 
     private logger = createLogger('ECSManager');
     private isInitialized: boolean = false;
@@ -105,6 +108,11 @@ export class ECSManager extends Component {
                     this.handleRemoteShoot(data);
                 });
 
+                // 被踢回调 - 显示提示并返回登录界面
+                networkService.onKicked((message) => {
+                    this.handleKicked(message);
+                });
+
                 // 连接服务器
                 const playerId = await networkService.connect(this.serverUrl, this.playerName);
                 this.logger.info(`已连接，玩家ID: ${playerId}`);
@@ -134,6 +142,11 @@ export class ECSManager extends Component {
 
     onDestroy() {
         networkService.disconnect();
+
+        // 销毁 Core（会自动清理 scene）
+        Core.destroy();
+
+        this.gameScene = null;
         this.isInitialized = false;
     }
 
@@ -144,6 +157,25 @@ export class ECSManager extends Component {
 
     sendShoot(targetX: number, targetY: number): void {
         networkService.sendShoot(targetX, targetY);
+    }
+
+    /**
+     * @zh 处理被踢事件
+     * @en Handle kicked event
+     */
+    private handleKicked(message: string): void {
+        this.logger.warn(`被踢出游戏: ${message}`);
+
+        // 登出
+        authService.logout();
+
+        // 显示提示（使用简单的 alert，实际项目中应使用 UI 弹窗）
+        if (typeof window !== 'undefined' && window.alert) {
+            window.alert(message);
+        }
+
+        // 跳转回登录场景
+        director.loadScene(this.loginSceneName);
     }
 
     /**

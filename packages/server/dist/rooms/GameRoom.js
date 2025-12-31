@@ -19,7 +19,7 @@ import { Player } from '@esengine/server';
 import { ECSRoom, onMessage } from '@esengine/server/ecs';
 import { 
 // Components
-PlayerComponent, CollectibleComponent, CollectibleType, 
+PlayerComponent, CollectibleComponent, CollectibleType, EnemyComponent, 
 // Systems
 PlayerMovementSystem, EnemyAISystem, EnemySpawnSystem, CollectibleSpawnSystem, AirStrikeSpawnSystem, 
 // Types & Constants
@@ -44,6 +44,10 @@ const logger = createLogger('GameRoom');
 export class GameRoom extends ECSRoom {
     maxPlayers = 8;
     tickRate = 60;
+    /** @zh userId -> Player 映射，用于检测重复登录 */
+    onlineUsers = new Map();
+    /** @zh playerId -> userId 映射 */
+    playerUserMap = new Map();
     // =========================================================================
     // Lifecycle | 生命周期
     // =========================================================================
@@ -92,6 +96,12 @@ export class GameRoom extends ECSRoom {
     }
     async onLeave(player, reason) {
         logger.info(`Player leaving: ${player.id}`);
+        // 清理用户在线状态
+        const userId = this.playerUserMap.get(player.id);
+        if (userId) {
+            this.onlineUsers.delete(userId);
+            this.playerUserMap.delete(player.id);
+        }
         await super.onLeave(player, reason);
     }
     onDispose() {
@@ -102,7 +112,24 @@ export class GameRoom extends ECSRoom {
     // Message Handlers | 消息处理
     // =========================================================================
     handleJoinGame(data, player) {
-        logger.info(`Player joining: ${data.playerName}`);
+        const { playerName, userId, token } = data;
+        logger.info(`Player joining: ${playerName} (userId: ${userId})`);
+        // 验证 token 格式（简单验证：token 应以 userId 开头）
+        if (!token || !userId || !token.startsWith(userId)) {
+            logger.warn(`Invalid token for player ${playerName}`);
+            player.send('error', { message: 'Invalid token' });
+            return;
+        }
+        // 检查是否已有相同用户在线 - 踢掉旧连接
+        const existingPlayer = this.onlineUsers.get(userId);
+        if (existingPlayer && existingPlayer.id !== player.id) {
+            logger.info(`Kicking duplicate login for userId: ${userId}`);
+            existingPlayer.send('error', { message: '账号在其他地方登录' });
+            this.kickPlayer(existingPlayer);
+        }
+        // 记录用户在线状态
+        this.onlineUsers.set(userId, player);
+        this.playerUserMap.set(player.id, userId);
         // 先向新玩家发送所有已存在的实体
         this.sendExistingEntities(player);
         // 创建玩家实体
@@ -111,12 +138,24 @@ export class GameRoom extends ECSRoom {
         // @NetworkEntity 在 addComponent 时广播，确保数据正确
         const comp = new PlayerComponent();
         comp.playerId = player.id;
-        comp.playerName = data.playerName;
+        comp.playerName = playerName;
         comp.health = PLAYER_INITIAL_HEALTH;
         comp.x = (Math.random() - 0.5) * (MAP_BOUNDS.maxX - MAP_BOUNDS.minX) * 0.8;
         comp.y = (Math.random() - 0.5) * (MAP_BOUNDS.maxY - MAP_BOUNDS.minY) * 0.8;
         entity.addComponent(comp); // 自动广播 spawn（数据已初始化）
-        logger.info(`Player ${data.playerName} spawned at (${comp.x.toFixed(1)}, ${comp.y.toFixed(1)})`);
+        logger.info(`Player ${playerName} spawned at (${comp.x.toFixed(1)}, ${comp.y.toFixed(1)})`);
+    }
+    /**
+     * @zh 踢出玩家
+     * @en Kick player
+     */
+    kickPlayer(player) {
+        const userId = this.playerUserMap.get(player.id);
+        if (userId) {
+            this.onlineUsers.delete(userId);
+            this.playerUserMap.delete(player.id);
+        }
+        player.leave();
     }
     handleInput(data, player) {
         const entity = this.getPlayerEntity(player.id);
@@ -148,6 +187,16 @@ export class GameRoom extends ECSRoom {
             return;
         const angle = Math.atan2(data.targetY - comp.y, data.targetX - comp.x);
         this.broadcastShoot(player.id, comp.x, comp.y, angle);
+    }
+    handleEnemyHit(data, player) {
+        const enemy = this.scene.findEntityById(data.enemyId);
+        if (!enemy)
+            return;
+        const enemyComp = enemy.getComponent(EnemyComponent);
+        if (!enemyComp)
+            return;
+        enemyComp.health -= data.damage;
+        logger.debug(`Enemy ${data.enemyId} hit for ${data.damage} damage, health: ${enemyComp.health}`);
     }
     // =========================================================================
     // Helpers | 辅助方法
@@ -200,4 +249,10 @@ __decorate([
     __metadata("design:paramtypes", [Object, Player]),
     __metadata("design:returntype", void 0)
 ], GameRoom.prototype, "handleShoot", null);
+__decorate([
+    onMessage(MsgTypes.EnemyHit),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Player]),
+    __metadata("design:returntype", void 0)
+], GameRoom.prototype, "handleEnemyHit", null);
 //# sourceMappingURL=GameRoom.js.map

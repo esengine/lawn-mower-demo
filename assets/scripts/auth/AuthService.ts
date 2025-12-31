@@ -3,9 +3,11 @@
  * @en Auth Service - Handle login, register, guest login
  */
 
-import { createLogger } from '@esengine/ecs-framework';
-
-const logger = createLogger('Auth');
+// Simple logger replacement (avoid @esengine/ecs-framework dependency in Cocos)
+const logger = {
+    info: (...args: unknown[]) => console.log('[Auth]', ...args),
+    error: (...args: unknown[]) => console.error('[Auth]', ...args),
+};
 
 export interface AuthResult {
     success: boolean;

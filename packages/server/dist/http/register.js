@@ -3,10 +3,10 @@
  * @en Register API
  */
 import { defineHttp } from '@esengine/server';
-import { users } from './login.js';
+import { getUserRepository } from '../db.js';
 export default defineHttp({
     method: 'POST',
-    handler(req, res) {
+    async handler(req, res) {
         const { username, password } = req.body;
         if (!username || !password) {
             res.error(400, 'Username and password are required');
@@ -26,19 +26,20 @@ export default defineHttp({
             });
             return;
         }
-        if (users.has(username)) {
+        const userRepo = getUserRepository();
+        try {
+            const user = await userRepo.register({ username, password });
+            res.json({
+                success: true,
+                userId: user.id,
+            });
+        }
+        catch (err) {
             res.json({
                 success: false,
-                error: 'Username already exists',
+                error: err instanceof Error ? err.message : 'Registration failed',
             });
-            return;
         }
-        const userId = `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        users.set(username, { password, id: userId });
-        res.json({
-            success: true,
-            userId,
-        });
     },
 });
 //# sourceMappingURL=register.js.map

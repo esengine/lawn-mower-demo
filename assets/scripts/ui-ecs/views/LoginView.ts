@@ -3,7 +3,7 @@
  * @en Login View Component
  */
 
-import { _decorator, Component, EditBox, Label, Button, Node } from 'cc';
+import { _decorator, Component, EditBox, Label, Button, Node, director } from 'cc';
 import { authService } from '../../auth';
 
 const { ccclass, property } = _decorator;
@@ -31,6 +31,9 @@ export class LoginView extends Component {
 
     @property({ tooltip: 'API 服务器地址' })
     apiUrl: string = 'http://localhost:8080/api';
+
+    @property({ tooltip: '登录成功后跳转的场景名' })
+    gameSceneName: string = 'scene';
 
     private _onLoginSuccess: ((username: string) => void) | null = null;
 
@@ -68,11 +71,11 @@ export class LoginView extends Component {
 
         if (result.success) {
             this._onLoginSuccess?.(username);
+            this.gotoGameScene();
         } else {
             this.showError(result.error || '登录失败');
+            this.setButtonsEnabled(true);
         }
-
-        this.setButtonsEnabled(true);
     }
 
     private async onRegisterClick(): Promise<void> {
@@ -116,11 +119,11 @@ export class LoginView extends Component {
 
         if (result.success && result.username) {
             this._onLoginSuccess?.(result.username);
+            this.gotoGameScene();
         } else {
             this.showError(result.error || '游客登录失败');
+            this.setButtonsEnabled(true);
         }
-
-        this.setButtonsEnabled(true);
     }
 
     private showError(message: string): void {
@@ -141,5 +144,9 @@ export class LoginView extends Component {
         if (this.loginButton) this.loginButton.interactable = enabled;
         if (this.registerButton) this.registerButton.interactable = enabled;
         if (this.guestButton) this.guestButton.interactable = enabled;
+    }
+
+    private gotoGameScene(): void {
+        director.loadScene(this.gameSceneName);
     }
 }

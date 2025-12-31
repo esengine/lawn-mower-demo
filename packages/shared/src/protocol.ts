@@ -23,6 +23,8 @@ export const MsgTypes = {
     Shoot: 'Shoot',
     /** @zh 收集物品 @en Collect item */
     Collect: 'Collect',
+    /** @zh 敌人受击 @en Enemy hit */
+    EnemyHit: 'EnemyHit',
 } as const;
 
 /**
@@ -51,6 +53,10 @@ export type MsgType = typeof MsgTypes[keyof typeof MsgTypes];
 export interface JoinGameMsg {
     /** @zh 玩家名称 @en Player name */
     playerName: string;
+    /** @zh 用户ID @en User ID */
+    userId: string;
+    /** @zh 认证令牌 @en Auth token */
+    token: string;
 }
 
 /**
@@ -77,6 +83,17 @@ export interface ShootMsg {
     targetX: number;
     /** @zh 目标Y坐标 @en Target Y coordinate */
     targetY: number;
+}
+
+/**
+ * @zh 敌人受击消息
+ * @en Enemy hit message
+ */
+export interface EnemyHitMsg {
+    /** @zh 敌人服务端实体ID @en Enemy server entity ID */
+    enemyId: number;
+    /** @zh 伤害值 @en Damage amount */
+    damage: number;
 }
 
 // =============================================================================

@@ -6,11 +6,10 @@
  * @en Shared enemy spawn logic for both server and client
  */
 
-import { Entity, EntitySystem, Matcher, Time, ECSSystem } from '@esengine/ecs-framework';
+import { Entity, EntitySystem, Matcher, ECSSystem } from '@esengine/ecs-framework';
 import { PlayerComponent } from '../components/PlayerComponent.js';
 import { EnemyComponent } from '../components/EnemyComponent.js';
 import {
-    ENEMY_SPAWN_INTERVAL,
     ENEMY_SPAWN_DISTANCE,
     ENEMY_INITIAL_HEALTH,
     ENEMY_MOVE_SPEED,
@@ -20,8 +19,6 @@ import {
 
 @ECSSystem('EnemySpawnSystem')
 export class EnemySpawnSystem extends EntitySystem {
-    private spawnTimer: number = 0;
-
     constructor() {
         // 监听玩家（用于计算生成位置）
         super(Matcher.all(PlayerComponent));
@@ -38,10 +35,9 @@ export class EnemySpawnSystem extends EntitySystem {
         const enemyCount = this.scene!.queryAll(EnemyComponent).entities.length;
         if (enemyCount >= MAX_ENEMIES) return;
 
-        this.spawnTimer += Time.deltaTime;
-
-        if (this.spawnTimer >= ENEMY_SPAWN_INTERVAL) {
-            this.spawnTimer = 0;
+        // 每帧生成 n 个敌人（n = 玩家数量），展示 ECS 框架性能
+        const spawnCount = Math.min(players.length, MAX_ENEMIES - enemyCount);
+        for (let i = 0; i < spawnCount; i++) {
             this.spawnEnemy(players);
         }
     }

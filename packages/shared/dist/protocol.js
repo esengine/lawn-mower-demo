@@ -21,6 +21,8 @@ export const MsgTypes = {
     Shoot: 'Shoot',
     /** @zh 收集物品 @en Collect item */
     Collect: 'Collect',
+    /** @zh 敌人受击 @en Enemy hit */
+    EnemyHit: 'EnemyHit',
 };
 /**
  * @zh 服务端广播事件类型

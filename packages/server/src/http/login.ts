@@ -4,6 +4,7 @@
  */
 
 import { defineHttp } from '@esengine/server';
+import { getUserRepository } from '../db.js';
 
 interface LoginBody {
     username: string;
@@ -17,13 +18,9 @@ interface LoginResponse {
     error?: string;
 }
 
-// 简单的用户存储（实际项目应使用数据库）
-// Simple user storage (use database in production)
-const users = new Map<string, { password: string; id: string }>();
-
 export default defineHttp<LoginBody>({
     method: 'POST',
-    handler(req, res) {
+    async handler(req, res) {
         const { username, password } = req.body;
 
         if (!username || !password) {
@@ -31,8 +28,10 @@ export default defineHttp<LoginBody>({
             return;
         }
 
-        const user = users.get(username);
-        if (!user || user.password !== password) {
+        const userRepo = getUserRepository();
+        const user = await userRepo.authenticate(username, password);
+
+        if (!user) {
             res.json({
                 success: false,
                 error: 'Invalid username or password',
@@ -51,7 +50,3 @@ export default defineHttp<LoginBody>({
         } satisfies LoginResponse);
     },
 });
-
-// 导出 users 供注册接口使用
-// Export users for register API
-export { users };

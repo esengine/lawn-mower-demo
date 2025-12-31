@@ -14,15 +14,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-import { EntitySystem, Matcher, Time, ECSSystem } from '@esengine/ecs-framework';
+import { EntitySystem, Matcher, ECSSystem } from '@esengine/ecs-framework';
 import { PlayerComponent } from '../components/PlayerComponent.js';
 import { EnemyComponent } from '../components/EnemyComponent.js';
-import { ENEMY_SPAWN_INTERVAL, ENEMY_SPAWN_DISTANCE, ENEMY_INITIAL_HEALTH, ENEMY_MOVE_SPEED, MAX_ENEMIES, MAP_BOUNDS, } from '../constants.js';
+import { ENEMY_SPAWN_DISTANCE, ENEMY_INITIAL_HEALTH, ENEMY_MOVE_SPEED, MAX_ENEMIES, MAP_BOUNDS, } from '../constants.js';
 let EnemySpawnSystem = class EnemySpawnSystem extends EntitySystem {
     constructor() {
         // 监听玩家（用于计算生成位置）
         super(Matcher.all(PlayerComponent));
-        this.spawnTimer = 0;
     }
     process(players) {
         // 没有玩家时不生成
@@ -35,9 +34,9 @@ let EnemySpawnSystem = class EnemySpawnSystem extends EntitySystem {
         const enemyCount = this.scene.queryAll(EnemyComponent).entities.length;
         if (enemyCount >= MAX_ENEMIES)
             return;
-        this.spawnTimer += Time.deltaTime;
-        if (this.spawnTimer >= ENEMY_SPAWN_INTERVAL) {
-            this.spawnTimer = 0;
+        // 每帧生成 n 个敌人（n = 玩家数量），展示 ECS 框架性能
+        const spawnCount = Math.min(players.length, MAX_ENEMIES - enemyCount);
+        for (let i = 0; i < spawnCount; i++) {
             this.spawnEnemy(players);
         }
     }

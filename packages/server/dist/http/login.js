@@ -3,19 +3,18 @@
  * @en Login API
  */
 import { defineHttp } from '@esengine/server';
-// 简单的用户存储（实际项目应使用数据库）
-// Simple user storage (use database in production)
-const users = new Map();
+import { getUserRepository } from '../db.js';
 export default defineHttp({
     method: 'POST',
-    handler(req, res) {
+    async handler(req, res) {
         const { username, password } = req.body;
         if (!username || !password) {
             res.error(400, 'Username and password are required');
             return;
         }
-        const user = users.get(username);
-        if (!user || user.password !== password) {
+        const userRepo = getUserRepository();
+        const user = await userRepo.authenticate(username, password);
+        if (!user) {
             res.json({
                 success: false,
                 error: 'Invalid username or password',
@@ -32,7 +31,4 @@ export default defineHttp({
         });
     },
 });
-// 导出 users 供注册接口使用
-// Export users for register API
-export { users };
 //# sourceMappingURL=login.js.map

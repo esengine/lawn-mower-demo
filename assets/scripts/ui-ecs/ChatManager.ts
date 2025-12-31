@@ -50,13 +50,13 @@ export class ChatManager extends Component {
     }
 
     private _bindEvents(): void {
-        if (this.openChatButton) {
+        if (this.openChatButton?.node) {
             this.openChatButton.node.on(Button.EventType.CLICK, this._openChat, this);
         }
     }
 
     private _unbindEvents(): void {
-        if (this.openChatButton) {
+        if (this.openChatButton?.node?.isValid) {
             this.openChatButton.node.off(Button.EventType.CLICK, this._openChat, this);
         }
     }

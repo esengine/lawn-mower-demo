@@ -43,15 +43,15 @@ export declare const ENEMY_MOVE_SPEED = 60;
  */
 export declare const ENEMY_INITIAL_HEALTH = 25;
 /**
- * @zh 敌人生成间隔（秒）
- * @en Enemy spawn interval (seconds)
+ * @zh 敌人生成间隔（秒）- 每帧生成
+ * @en Enemy spawn interval (seconds) - spawn every frame
  */
-export declare const ENEMY_SPAWN_INTERVAL = 2;
+export declare const ENEMY_SPAWN_INTERVAL = 0;
 /**
  * @zh 最大敌人数量
  * @en Maximum enemy count
  */
-export declare const MAX_ENEMIES = 50;
+export declare const MAX_ENEMIES = 500;
 /**
  * @zh 敌人生成距离（离玩家的距离）
  * @en Enemy spawn distance from player

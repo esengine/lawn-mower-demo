@@ -6,6 +6,66 @@
 
 - **Node.js** >= 18.0.0
 - **pnpm** >= 8.0.0 (推荐使用 pnpm，原生支持 workspace)
+- **MongoDB** >= 6.0.0 (用于用户数据存储)
+
+### 安装 MongoDB
+
+服务端需要 MongoDB 数据库来存储用户数据。
+
+#### Windows
+
+**方式一：使用 winget（推荐）**
+
+```bash
+winget install MongoDB.Server
+```
+
+安装完成后，MongoDB 会自动作为 Windows 服务运行。
+
+**方式二：手动安装**
+
+1. 下载 MSI 安装包：https://www.mongodb.com/try/download/community
+2. 运行安装程序，选择 "Complete" 安装
+3. 勾选 "Install MongoDB as a Service"（推荐）
+4. 完成安装后 MongoDB 服务会自动启动
+
+#### macOS
+
+```bash
+# 使用 Homebrew
+brew tap mongodb/brew
+brew install mongodb-community
+brew services start mongodb-community
+```
+
+#### Linux (Ubuntu/Debian)
+
+```bash
+# 导入公钥
+curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg --dearmor
+
+# 添加源
+echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] http://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+
+# 安装
+sudo apt update
+sudo apt install -y mongodb-org
+sudo systemctl start mongod
+sudo systemctl enable mongod
+```
+
+#### Docker（跨平台）
+
+```bash
+docker run -d --name mongodb -p 27017:27017 mongo:latest
+```
+
+#### 验证安装
+
+```bash
+# 检查 MongoDB 是否运行
+mongosh --eval "db.version()"
+```
 
 ### 安装 pnpm
 
@@ -125,9 +185,12 @@ export class GameRoom extends ECSRoom {
 
 | 包 | 版本 | 说明 |
 |----|------|------|
-| @esengine/ecs-framework | ^2.5.0 | ECS 核心框架 |
-| @esengine/server | ^2.0.0 | 游戏服务器框架 |
+| @esengine/ecs-framework | ^2.7.1 | ECS 核心框架 |
+| @esengine/server | ^4.2.0 | 游戏服务器框架 |
+| @esengine/database-drivers | ^1.1.1 | 数据库连接驱动 |
+| @esengine/database | ^1.1.1 | 数据库 CRUD 操作 |
 | @esengine/rpc | ^1.1.1 | RPC 通信 |
+| mongodb | ^6.12.0 | MongoDB 驱动 (peer dependency) |
 
 ## 开发说明
 

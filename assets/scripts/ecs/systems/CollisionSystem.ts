@@ -3,6 +3,7 @@ import { Transform, ColliderComponent, Health, ParticleEffect, DamageCooldown, P
 import { PhysicsWorld, CollisionPair } from '../PhysicsWorld';
 import { EntityTags } from '../EntityTags';
 import { Vec2 } from 'cc';
+import { networkService } from '../../network';
 
 @ECSSystem('CollisionSystem')
 export class CollisionSystem extends EntitySystem {
@@ -48,20 +49,24 @@ export class CollisionSystem extends EntitySystem {
         const enemyHealth = enemy.getComponent(Health);
         const bulletTransform = bullet.getComponent(Transform);
         const projectile = bullet.getComponent(Projectile);
-        
+
         if (enemyHealth && bulletTransform && projectile) {
             if (projectile.type === ProjectileType.GRENADE) {
                 this.handleGrenadeExplosion(bulletTransform.position.x, bulletTransform.position.y, projectile);
             } else {
-                enemyHealth.takeDamage(30);
-                
+                const damage = 30;
+                enemyHealth.takeDamage(damage);
+
+                // 通知服务器敌人受击
+                networkService.sendEnemyHit(enemy, damage);
+
                 if (enemyHealth.current <= 0) {
                     this.createDeathParticles(bulletTransform.position.x, bulletTransform.position.y);
                     enemy.destroy();
                 }
             }
         }
-        
+
         bullet.destroy();
     }
     
@@ -104,24 +109,27 @@ export class CollisionSystem extends EntitySystem {
     
     private handleGrenadeExplosion(x: number, y: number, projectile: Projectile): void {
         this.scene.eventSystem.emit('camera:shake', { type: 'strong' });
-        
+
         const explosionCenter = new Vec2(x, y);
         const enemyEntities = this.scene.findEntitiesByTag(EntityTags.ENEMY);
-        
+
         for (const enemy of enemyEntities) {
             const enemyTransform = enemy.getComponent(Transform);
             const enemyHealth = enemy.getComponent(Health);
-            
+
             if (enemyTransform && enemyHealth) {
                 const enemyPos = new Vec2(enemyTransform.position.x, enemyTransform.position.y);
                 const distance = Vec2.distance(explosionCenter, enemyPos);
-                
+
                 if (distance <= projectile.explosionRadius) {
                     const damageRatio = 1 - (distance / projectile.explosionRadius);
                     const damage = Math.floor(projectile.explosionDamage * damageRatio);
-                    
+
                     enemyHealth.takeDamage(damage);
-                    
+
+                    // 通知服务器敌人受击
+                    networkService.sendEnemyHit(enemy, damage);
+
                     if (enemyHealth.current <= 0) {
                         this.createDeathParticles(enemyTransform.position.x, enemyTransform.position.y);
                         enemy.destroy();
@@ -129,7 +137,7 @@ export class CollisionSystem extends EntitySystem {
                 }
             }
         }
-        
+
         this.createDeathParticles(x, y);
     }
 }

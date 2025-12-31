@@ -7,7 +7,6 @@
  */
 import { Entity, EntitySystem } from '@esengine/ecs-framework';
 export declare class EnemySpawnSystem extends EntitySystem {
-    private spawnTimer;
     constructor();
     protected process(players: readonly Entity[]): void;
     private spawnEnemy;

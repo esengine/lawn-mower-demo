@@ -5,6 +5,7 @@
     "version": "3.8.6"
   },
   "dependencies": {
+    "@esengine/behavior-tree": "^4.1.1",
     "@esengine/ecs-framework": "^2.7.1",
     "@esengine/mvvm-ui-framework": "^1.1.7",
     "@esengine/network": "^3.0.1",

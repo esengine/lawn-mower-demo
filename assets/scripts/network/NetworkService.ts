@@ -6,6 +6,7 @@
 import { createLogger, Scene, decodeSnapshot, decodeSpawn, decodeDespawn, SyncOperation, Entity, type DecodeSpawnResult } from '@esengine/ecs-framework';
 import { rpc, RpcClient, connect } from '@esengine/rpc';
 import { MsgTypes, PlayerComponent, EnemyComponent, CollectibleComponent, CollectibleType as SharedCollectibleType } from '@example/lawn-mower-shared';
+import { authService } from '../auth';
 import { Transform, Movement, Health, Renderable, ColliderComponent, NetworkPlayer, PlayerInput, CameraTarget, Weapon, Collectible, CollectibleType } from '../ecs/components';
 import { RenderSystem } from '../ecs/systems/RenderSystem';
 import { AIComponent } from '../ecs/systems/AISystem';
@@ -47,12 +48,19 @@ class NetworkService {
     private _scene: Scene | null = null;
     private _playerId: string = '';
     private _onShoot: ((data: ShootEventData) => void) | null = null;
+    private _onKicked: ((message: string) => void) | null = null;
 
     /**
      * @zh 服务器实体ID到客户端实体的映射
      * @en Server entity ID to client entity mapping
      */
     private _serverEntityMap: Map<number, Entity> = new Map();
+
+    /**
+     * @zh 客户端实体到服务器实体ID的映射（反向）
+     * @en Client entity to server entity ID mapping (reverse)
+     */
+    private _entityServerIdMap: Map<Entity, number> = new Map();
 
     static get instance(): NetworkService {
         return this._instance ??= new NetworkService();
@@ -81,9 +89,21 @@ class NetworkService {
     }
 
     /**
+     * 设置被踢回调
+     */
+    onKicked(callback: (message: string) => void): void {
+        this._onKicked = callback;
+    }
+
+    /**
      * 连接并加入房间
      */
     async connect(url: string, playerName: string): Promise<string> {
+        // 验证登录状态
+        if (!authService.isLoggedIn) {
+            throw new Error('Not logged in');
+        }
+
         this._client = await connect(protocol, url, {
             autoReconnect: true,
             onConnect: () => logger.info('已连接'),
@@ -99,8 +119,12 @@ class NetworkService {
         this._playerId = result.playerId;
         logger.info(`加入房间: ${result.roomId}`);
 
-        // 发送 JoinGame
-        this.send(MsgTypes.JoinGame, { playerName });
+        // 发送 JoinGame（包含认证信息）
+        this.send(MsgTypes.JoinGame, {
+            playerName,
+            userId: authService.userId,
+            token: authService.token,
+        });
 
         return this._playerId;
     }
@@ -113,6 +137,7 @@ class NetworkService {
         this._client = null;
         this._playerId = '';
         this._serverEntityMap.clear();
+        this._entityServerIdMap.clear();
     }
 
     /**
@@ -129,15 +154,33 @@ class NetworkService {
         this.send(MsgTypes.Shoot, { targetX, targetY });
     }
 
+    /**
+     * @zh 发送敌人受击消息
+     * @en Send enemy hit message
+     */
+    sendEnemyHit(enemy: Entity, damage: number): void {
+        const serverEntityId = this._entityServerIdMap.get(enemy);
+        if (serverEntityId !== undefined) {
+            this.send(MsgTypes.EnemyHit, { enemyId: serverEntityId, damage });
+        }
+    }
+
+    /**
+     * @zh 获取实体的服务器ID
+     * @en Get server ID for entity
+     */
+    getServerEntityId(entity: Entity): number | undefined {
+        return this._entityServerIdMap.get(entity);
+    }
+
     private send(type: string, data: unknown): void {
         this._client?.send('RoomMessage', { type, data });
     }
 
     private handleMessage(type: string, data: unknown): void {
-        if (!this._scene) return;
-
         switch (type) {
             case '$sync':
+                if (!this._scene) return;
                 // 状态同步（二进制）
                 const syncData = data as { data: number[] };
                 const bytes = new Uint8Array(syncData.data);
@@ -152,6 +195,14 @@ class NetworkService {
             case 'AirStrike':
                 // 空袭事件 - 触发客户端空袭效果
                 this._scene?.eventSystem.emit('airstrike:activate', data);
+                break;
+
+            case 'error':
+                // 错误消息（如被踢）
+                const errorData = data as { message: string };
+                logger.warn(`Server error: ${errorData.message}`);
+                this._onKicked?.(errorData.message);
+                this.disconnect();
                 break;
         }
     }
@@ -172,6 +223,7 @@ class NetworkService {
                 if (spawnResult) {
                     if (serverEntityId !== null) {
                         this._serverEntityMap.set(serverEntityId, spawnResult.entity);
+                        this._entityServerIdMap.set(spawnResult.entity, serverEntityId);
                     }
                     this.setupSpawnedEntity(spawnResult.entity, spawnResult.prefabType, serverEntityId ?? undefined);
                 }
@@ -185,6 +237,7 @@ class NetworkService {
                         if (entity) {
                             entity.destroy();
                             this._serverEntityMap.delete(entityId);
+                            this._entityServerIdMap.delete(entity);
                         }
                     }
                 }

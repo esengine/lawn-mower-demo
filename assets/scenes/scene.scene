@@ -126,6 +126,8 @@
     "enableNetwork": true,
     "serverUrl": "ws://localhost:8080",
     "playerName": "Player",
+    "loginViewNode": null,
+    "requireLogin": false,
     "_id": "22ZHgzNL5KEY33XZKntbFw"
   },
   {
