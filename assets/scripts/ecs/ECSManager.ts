@@ -1,11 +1,13 @@
 import { Core, createLogger } from '@esengine/ecs-framework';
-import { Component, _decorator, Vec2 } from 'cc';
+import { Component, _decorator, Vec2, Node } from 'cc';
 import { GameScene } from './scenes/GameScene';
 import { networkService, type ShootEventData } from '../network';
 import { ECSConsoleDebug } from './debug/ECSConsoleDebug';
 import { Transform, Projectile, ColliderComponent, Renderable } from './components';
 import { RenderSystem } from './systems/RenderSystem';
 import { EntityTags } from './EntityTags';
+import { authService } from '../auth';
+import { LoginView } from '../ui-ecs/views/LoginView';
 
 const { ccclass, property } = _decorator;
 
@@ -24,12 +26,43 @@ export class ECSManager extends Component {
     @property({ tooltip: '玩家名称' })
     playerName: string = 'Player';
 
+    @property({ type: Node, tooltip: '登录界面节点（可选）' })
+    loginViewNode: Node | null = null;
+
+    @property({ tooltip: '是否需要登录（启用后会先显示登录界面）' })
+    requireLogin: boolean = false;
+
     private logger = createLogger('ECSManager');
     private isInitialized: boolean = false;
     private gameScene: GameScene | null = null;
 
     async start() {
-        await this.initialize();
+        if (this.requireLogin && this.loginViewNode) {
+            // 显示登录界面，等待登录完成
+            this.showLogin();
+        } else {
+            // 直接初始化游戏
+            await this.initialize();
+        }
+    }
+
+    /**
+     * @zh 显示登录界面
+     * @en Show login view
+     */
+    private showLogin(): void {
+        if (!this.loginViewNode) return;
+
+        this.loginViewNode.active = true;
+        const loginView = this.loginViewNode.getComponent(LoginView);
+
+        if (loginView) {
+            loginView.onLoginSuccess(async (username) => {
+                this.playerName = username;
+                this.loginViewNode!.active = false;
+                await this.initialize();
+            });
+        }
     }
 
     private async initialize(): Promise<void> {

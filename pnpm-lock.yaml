@@ -30,8 +30,8 @@ importers:
         specifier: ^2.7.1
         version: 2.7.1
       '@esengine/server':
-        specifier: ^3.0.0
-        version: 3.0.0(@esengine/ecs-framework@2.7.1)(typescript@5.9.3)(ws@8.18.3)
+        specifier: ^4.2.0
+        version: 4.2.0(@esengine/ecs-framework@2.7.1)(typescript@5.9.3)(ws@8.18.3)
       '@example/lawn-mower-shared':
         specifier: workspace:*
         version: link:../shared
@@ -386,10 +386,19 @@ packages:
       ws:
         optional: true
 
-  '@esengine/server@3.0.0':
-    resolution: {integrity: sha512-RBf4Kyyhfp+zvf6DNJVroeUeheK2thdNq6oxd1ucvim9fww3/2HkRziKfuk3ezgVKgOcMm+MUcSv0cNcVP5Gpw==}
+  '@esengine/rpc@1.1.3':
+    resolution: {integrity: sha512-uqRze3cW/HYPNXfW/iMUiuGFwWBYJtO6OlCQFRXOdLmIdm5aYYbItsKppqYopvL10tXahgU6ZDNM/x5wbvumkw==}
     peerDependencies:
-      '@esengine/ecs-framework': '>=2.6.0'
+      typescript: '>=5.0.0'
+      ws: '>=8.0.0'
+    peerDependenciesMeta:
+      ws:
+        optional: true
+
+  '@esengine/server@4.2.0':
+    resolution: {integrity: sha512-gO7AOkfKFmyEoiCB7hwKJOWfGRS7E0GNABbrV543AMViZ7U7znPSyUYReZcnyNGr3BLlg9z2d9roqZOSr3UWMw==}
+    peerDependencies:
+      '@esengine/ecs-framework': '>=2.7.1'
       jsonwebtoken: '>=9.0.0'
       ws: '>=8.0.0'
     peerDependenciesMeta:
@@ -1114,9 +1123,16 @@ snapshots:
       msgpackr: 1.11.8
       ws: 8.18.3
 
-  '@esengine/server@3.0.0(@esengine/ecs-framework@2.7.1)(typescript@5.9.3)(ws@8.18.3)':
+  '@esengine/rpc@1.1.3(typescript@5.9.3)(ws@8.18.3)':
     dependencies:
-      '@esengine/rpc': 1.1.1(typescript@5.9.3)(ws@8.18.3)
+      typescript: 5.9.3
+    optionalDependencies:
+      msgpackr: 1.11.8
+      ws: 8.18.3
+
+  '@esengine/server@4.2.0(@esengine/ecs-framework@2.7.1)(typescript@5.9.3)(ws@8.18.3)':
+    dependencies:
+      '@esengine/rpc': 1.1.3(typescript@5.9.3)(ws@8.18.3)
       ws: 8.18.3
     optionalDependencies:
       '@esengine/ecs-framework': 2.7.1
